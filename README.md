@@ -1,4 +1,4 @@
-# BotPad - Minimal GitHub Editor
+# BotPad - Minimal But Amazing GitHub Editor 
 
 Drop these files over your current folder, then:
 
