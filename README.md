@@ -1,48 +1,19 @@
-# BotPad - Minimal GitHub Editor
+# Cloudflare Diagnostics
 
-Drop these files over your current folder, then:
+A client-side tool for inspecting Cloudflare Workers and Pages projects.
+Paste a Cloudflare API token and generate diagnostic reports for selected resources.
 
-```
-wrangler deploy
-wrangler tail
-```
+## Development
 
-For Pages:
-
-```
-mkdir -p dist
-cp index.html dist/index.html
-wrangler pages deploy dist --project-name agentcode
+```bash
+npm install
+npm run dev
 ```
 
-## Configuring API base
+## Build
 
-The app looks for an API base URL in the following order and falls back to
-relative paths when nothing is provided:
-
-1. `window.API_BASE` global variable.
-2. `<meta name="api-base" content="https://api.example.com">` tag.
-3. `API_BASE` environment variable at build time.
-
-To point the frontend at a different API deployment, define one of the above
-before loading `index.html`. For example:
-
-```html
-<meta name="api-base" content="https://botpad-api.example.workers.dev">
+```bash
+npm run build
 ```
 
-or
-
-```html
-<script>window.API_BASE = "https://botpad-api.example.workers.dev";</script>
-```
-
-## Manual testing
-
-To confirm that `.env` persistence works:
-
-1. Deploy the worker and open the app.
-2. Connect to a repository.
-3. Enter some content in the `.env` box and click **Save .env**.
-4. Verify in the network panel that the request to `/api/env` uses the `PUT` method and returns a successful response.
-
+The app is a static site ready to deploy on Cloudflare Pages.
