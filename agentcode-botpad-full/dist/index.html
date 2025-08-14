@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgentCode BotPad</title>
+  <meta name="description" content="Agent friendly code editor with GitHub App or PAT auth, plus .env storage.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'><rect width='256' height='256' fill='%23000'/><text x='50%' y='54%' font-size='120' text-anchor='middle' fill='%23fff' font-family='Courier New, monospace'>AC</text></svg>">
+  <!-- CodeMirror 5 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/neo.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/loadmode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/meta.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+  <style>
+    :root{
+      --pad: 14px;
+      --gap: 12px;
+      --btn-size: 56px;
+      --font: ui-monospace, "Fira Code", Menlo, Monaco, Consolas, "Courier New", monospace;
+      --bg: #0f172a;
+      --panel: #111827;
+      --ink: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #22c55e;
+      --accent-2: #10b981;
+      --danger: #ef4444;
+      --border: #1f2937;
+      --focus: #60a5fa;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body{
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+      font-size: 16px;
+    }
+    /* GBT Agent theme, bolder contrast, larger fonts and controls */
+    body.theme-gbt{
+      --bg: #000814;
+      --panel: #001d3d;
+      --ink: #e6f1ff;
+      --muted: #9bb4d3;
+      --accent: #00d37f;
+      --accent-2: #00b36b;
+      --danger: #ff5a5a;
+      --border: #0a2a4a;
+      --focus: #66aaff;
+    }
+    .topbar{
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: var(--gap);
+      padding: var(--pad);
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .controls{
+      display: grid;
+      grid-template-columns: 200px 150px 160px 160px 1fr;
+      gap: var(--gap);
+      align-items: center;
+    }
+    .controls .field{
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      background: #0b1220;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 6px 10px;
+    }
+    .controls .field input, .controls .field select{
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--ink);
+      width: 100%;
+      font-family: var(--font);
+      font-size: 16px;
+    }
+    .controls .field input::placeholder{ color: var(--muted); }
+    .btns{
+      display: flex;
+      gap: var(--gap);
+      align-items: center;
+      justify-content: flex-end;
+    }
+    button{
+      font-family: var(--font);
+      font-size: 18px;
+      border: 2px solid var(--border);
+      background: #0b1220;
+      color: var(--ink);
+      padding: 14px 18px;
+      min-height: var(--btn-size);
+      min-width: 170px;
+      border-radius: 14px;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+    }
+    button.big { min-width: 210px; }
+    button.primary{ border-color: var(--accent-2); }
+    button.primary:hover{ border-color: var(--accent); }
+    button:focus{ outline: 3px solid var(--focus); outline-offset: 2px; }
+    button.danger{ border-color: var(--danger); color: #fecaca; }
+    button[disabled]{ opacity: 0.6; cursor: not-allowed; }
+    .wrap{
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: var(--gap);
+      height: calc(100% - 112px);
+      padding: var(--pad);
+    }
+    .sidebar{
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      overflow: hidden;
+      min-height: 0;
+    }
+    .tabs{
+      display: flex;
+      gap: 6px;
+      padding: var(--pad);
+      border-bottom: 1px solid var(--border);
+    }
+    .tab{
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      background: #0b1220;
+      border-radius: 10px;
+      cursor: pointer;
+      color: var(--ink);
+    }
+    .tab.active{ border-color: var(--accent); }
+    .search{
+      padding: var(--pad);
+      border-bottom: 1px solid var(--border);
+    }
+    .search input{
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0b1220;
+      color: var(--ink);
+      font-size: 16px;
+    }
+    .tree{
+      overflow: auto;
+      padding: 4px;
+    }
+    .file{
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin: 6px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      font-size: 18px;
+    }
+    .file:hover{ background: #0b1220; border-color: var(--border); }
+    .file .name{
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .status{
+      border-top: 1px solid var(--border);
+      padding: var(--pad);
+      font-size: 14px;
+      color: var(--muted);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .editor{
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 0;
+    }
+   .toolbar{
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--gap);
+      padding: var(--pad);
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+    .toolbar .label{ color: var(--muted); }
+    .cm-wrap{ min-height: 0; }
+    .CodeMirror{
+      height: calc(100vh - 330px);
+      font-size: 18px;
+      line-height: 1.5;
+    }
+    .footerbar{
+      display: flex;
+      gap: var(--gap);
+      align-items: center;
+      padding: var(--pad);
+      border-top: 1px solid var(--border);
+    }
+    .footerbar input[type="text"]{
+      flex: 1;
+      min-width: 200px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0b1220;
+      color: var(--ink);
+      font-size: 16px;
+    }
+    .pill{
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+    }
+    .kbd{
+      border: 1px solid var(--border);
+      background: #0b1220;
+      padding: 1px 6px;
+      border-radius: 6px;
+      color: var(--ink);
+      font-size: 12px;
+    }
+    .hint{ color: var(--muted); font-size: 13px; }
+    .danger-text{ color: #f87171; }
+    .ok-text{ color: #34d399; }
+    .muted{ color: var(--muted); }
+    .row{ display: flex; gap: var(--gap); align-items: center; }
+    .spacer{ flex: 1; }
+    .inset{
+      background: #0b1220;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .env-box{
+      width: 100%;
+      height: 220px;
+      background: #0b1220;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      font-family: var(--font);
+    }
+  </style>
+</head>
+<body class="theme-gbt">
+  <header class="topbar" role="banner" aria-label="Top bar">
+    <div class="controls">
+      <div class="field" title="owner/repo or URL" aria-label="Repository">
+        <span class="muted">Repo</span>
+        <input id="repoInput" placeholder="owner/repo or URL" spellcheck="false" aria-label="Repo input">
+      </div>
+      <div class="field" title="Branch name" aria-label="Branch">
+        <span class="muted">Branch</span>
+        <input id="branchInput" placeholder="main or blank" spellcheck="false" aria-label="Branch input">
+      </div>
+      <div class="field" title="Auth mode" aria-label="Auth mode">
+        <span class="muted">Auth</span>
+        <select id="authMode" aria-label="Auth select">
+          <option value="app" selected>GitHub App</option>
+          <option value="pat">PAT</option>
+        </select>
+      </div>
+      <div class="field" title="PAT for fallback" aria-label="Token">
+        <span class="muted">Token</span>
+        <input id="tokenInput" type="password" placeholder="Only if PAT mode" aria-label="Token input">
+      </div>
+      <div class="field" title="Search files" aria-label="Search">
+        <span class="muted">Search</span>
+        <input id="searchInput" placeholder="Filter files..." aria-label="Search files">
+      </div>
+    </div>
+    <div class="btns" role="group" aria-label="Primary actions">
+      <button id="connectBtn" class="primary big" data-action="connect" aria-label="Connect to repository">Connect</button>
+      <button id="pullBtn" class="big" data-action="pull" aria-label="Pull tree" disabled>Pull</button>
+      <button id="newBtn" class="big" data-action="new" aria-label="Create new file" disabled>New File</button>
+      <button id="saveBtn" class="primary big" data-action="push" aria-label="Save file" disabled>Save</button>
+    </div>
+  </header>
+
+  <main class="wrap" role="main">
+    <aside class="sidebar" aria-label="Sidebar">
+      <div class="tabs">
+        <div class="tab active" data-tab="files">Files</div>
+        <div class="tab" data-tab="env">.env</div>
+        <div class="tab" data-tab="settings">Settings</div>
+      </div>
+      <div class="search">
+        <div class="row">
+          <div class="pill" id="repoLabel">No repo</div>
+          <div class="pill" id="branchLabel">-</div>
+        </div>
+      </div>
+      <div id="panel-files" class="tree" role="listbox" aria-label="File list"></div>
+      <div id="panel-env" class="tree" style="display:none;">
+        <div class="row" style="padding: 10px;">
+          <textarea id="envBox" class="env-box" placeholder="KEY=VALUE, one per line"></textarea>
+        </div>
+        <div class="row" style="padding: 10px;">
+          <button id="envLoad">Load .env</button>
+          <button id="envSave" class="primary">Save .env</button>
+          <span class="hint">Stored in Cloudflare KV via the API.</span>
+        </div>
+      </div>
+      <div id="panel-settings" class="tree" style="display:none; padding:10px;">
+        <div class="row" style="gap: 10px; flex-wrap: wrap;">
+          <label class="muted">Theme</label>
+          <select id="themeSelect" class="inset" aria-label="Theme select">
+            <option value="gbt" selected>GBT Agent</option>
+            <option value="neo">Light</option>
+            <option value="default">Default</option>
+          </select>
+          <label class="muted">Font size</label>
+          <input id="fontSize" type="range" min="14" max="26" value="18" aria-label="Font size slider">
+        </div>
+        <div class="hint" style="margin-top:10px;">Tips: Use Ctrl + S to save. Enter full or short repo. The app accepts owner/repo, URLs, or .git suffix.</div>
+      </div>
+      <div class="status" id="status">
+        <span>Idle</span>
+        <span class="hint">Large targets and simple flows.</span>
+      </div>
+    </aside>
+
+    <section class="editor" aria-label="Editor section">
+      <div class="toolbar">
+        <div class="row">
+          <span class="label">File</span>
+          <span id="currentPath" class="inset" aria-live="polite">None</span>
+          <span id="dirtyBadge" class="pill" style="display:none;">unsaved</span>
+        </div>
+        <span class="spacer"></span>
+        <div class="row">
+          <label class="muted">Commit message</label>
+          <input id="commitMsg" type="text" placeholder="Update file">
+          <button id="saveAsBtn" data-action="saveAs" aria-label="Save as new path" disabled>Save As</button>
+          <button id="deleteBtn" class="danger" data-action="delete" aria-label="Delete current file" disabled>Delete</button>
+        </div>
+      </div>
+
+      <div class="cm-wrap"><textarea id="code"></textarea></div>
+
+      <div class="footerbar">
+        <span class="hint">Shortcuts: <span class="kbd">Ctrl</span> + <span class="kbd">S</span></span>
+        <span class="spacer"></span>
+        <span id="apiMode" class="pill">Mode: -</span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ---------- Config ----------
+    // If you deploy the API as a separate Worker, set API_BASE to that origin.
+    // On Cloudflare Pages Functions with _worker.js, leave it as "".
+    const CONFIG = {
+      API_BASE: "https://botpad-api.whitakerdavid.workers.dev" // example: "https://botpad-api.your.workers.dev"
+    };
+
+    // ---------- Utilities ----------
+    const state = {
+      mode: "app", // "app" or "pat"
+      token: "",
+      owner: "",
+      repo: "",
+      branch: "",
+      connected: false,
+      tree: [],
+      current: { path: "", sha: "" },
+      editor: null
+    };
+
+    function byId(id){ return document.getElementById(id); }
+    function setStatus(msg, kind="info"){
+      const s = byId("status");
+      s.firstElementChild.textContent = msg;
+      s.className = "status " + kind;
+    }
+    function showError(err){
+      console.error(err);
+      setStatus(typeof err === "string" ? err : (err.message || "Error"), "error");
+      alert("Error: " + (err.message || err));
+    }
+    function headersJSON(){
+      return { "Content-Type": "application/json" };
+    }
+    function apiPath(path){ return (CONFIG.API_BASE || "") + path; }
+
+    function parseRepoSlug(input){
+      let s = (input || "").trim();
+      if(!s) throw new Error("Repository is required");
+      // Accept full URLs and .git suffix
+      s = s.replace(/^https?:\/\/github\.com\//i, "");
+      s = s.replace(/\.git$/i, "");
+      // Remove trailing slash or anything after . For example tree/main
+      s = s.split("#")[0].split("?")[0];
+      // If contains /tree/, strip parts
+      const parts = s.split("/").filter(Boolean);
+      if(parts.length >= 2){
+        return parts[0] + "/" + parts[1];
+      }
+      throw new Error("Use owner/repo or a GitHub URL");
+    }
+
+    function enableControls(connected){
+      byId("pullBtn").disabled = !connected;
+      byId("newBtn").disabled = !connected;
+      byId("saveBtn").disabled = !connected;
+      byId("saveAsBtn").disabled = !connected;
+      byId("deleteBtn").disabled = !connected;
+    }
+
+    // ---------- Editor ----------
+    function initEditor(){
+      state.editor = CodeMirror.fromTextArea(byId("code"), {
+        lineNumbers: true,
+        theme: "neo",
+        indentUnit: 2,
+        tabSize: 2,
+        indentWithTabs: false,
+        lineWrapping: false
+      });
+      state.editor.on("change", (cm)=>{
+        const dirty = !cm.isClean();
+        byId("dirtyBadge").style.display = dirty ? "inline-flex" : "none";
+      });
+    }
+
+    function applyModeFromPath(path){
+      const ext = path.includes(".") ? path.split(".").pop().toLowerCase() : "";
+      const info = CodeMirror.findModeByExtension(ext);
+      if(info){
+        state.editor.setOption("mode", info.mime);
+        CodeMirror.autoLoadMode(state.editor, info.mode);
+      }else{
+        state.editor.setOption("mode", null);
+      }
+    }
+
+    // ---------- API calls ----------
+    async function connect(){
+      try{
+        setStatus("Connecting...");
+        const slug = parseRepoSlug(byId("repoInput").value);
+        const [owner, repo] = slug.split("/");
+        state.owner = owner; state.repo = repo;
+        state.branch = byId("branchInput").value.trim();
+        state.mode = byId("authMode").value;
+        state.token = byId("tokenInput").value.trim();
+        const res = await fetch(apiPath("/api/connect"), {
+          method: "POST",
+          headers: headersJSON(),
+          body: JSON.stringify({
+            repo: slug,
+            branch: state.branch || undefined,
+            mode: state.mode,
+            token: state.mode === "pat" ? state.token : undefined
+          })
+        });
+        if(!res.ok){ throw new Error(await res.text()); }
+        const data = await res.json();
+        state.branch = data.branch;
+        byId("repoLabel").textContent = slug;
+        byId("branchLabel").textContent = state.branch;
+        byId("apiMode").textContent = "Mode: " + state.mode.toUpperCase();
+        state.connected = true;
+        enableControls(true);
+        await pullTree();
+        setStatus("Connected");
+      }catch(err){ showError(err); }
+    }
+
+    async function pullTree(){
+      try{
+        setStatus("Loading tree...");
+        const res = await fetch(apiPath(`/api/tree?repo=${encodeURIComponent(state.owner + "/" + state.repo)}&branch=${encodeURIComponent(state.branch)}&mode=${state.mode}`), {
+          method: "GET"
+        });
+        if(!res.ok){ throw new Error(await res.text()); }
+        const data = await res.json();
+        state.tree = data.files || [];
+        renderTree();
+        setStatus("Tree loaded. " + state.tree.length + " files.");
+      }catch(err){ showError(err); }
+    }
+
+    async function openFile(path){
+      try{
+        setStatus("Opening " + path + "...");
+        const res = await fetch(apiPath(`/api/file?repo=${encodeURIComponent(state.owner + "/" + state.repo)}&branch=${encodeURIComponent(state.branch)}&path=${encodeURIComponent(path)}&mode=${state.mode}`));
+        if(!res.ok){ throw new Error(await res.text()); }
+        const data = await res.json();
+        state.current = { path, sha: data.sha };
+        state.editor.setValue(data.content || "");
+        state.editor.markClean();
+        byId("currentPath").textContent = path;
+        byId("dirtyBadge").style.display = "none";
+        applyModeFromPath(path);
+        setStatus("Opened");
+      }catch(err){ showError(err); }
+    }
+
+    async function saveCurrentFile(saveAsPath=null){
+      try{
+        const path = saveAsPath || state.current.path;
+        if(!path) return alert("No file path. Use Save As or New File.");
+        const message = byId("commitMsg").value.trim() || ("Update " + path);
+        const content = state.editor.getValue();
+        setStatus("Saving " + path + "...");
+        const res = await fetch(apiPath("/api/file"), {
+          method: "PUT",
+          headers: headersJSON(),
+          body: JSON.stringify({
+            repo: state.owner + "/" + state.repo,
+            branch: state.branch,
+            path,
+            message,
+            content,
+            sha: saveAsPath ? undefined : state.current.sha,
+            mode: state.mode,
+            token: state.mode === "pat" ? state.token : undefined
+          })
+        });
+        if(!res.ok){ throw new Error(await res.text()); }
+        const data = await res.json();
+        state.current = { path: data.path, sha: data.sha };
+        state.editor.markClean();
+        byId("currentPath").textContent = data.path;
+        byId("dirtyBadge").style.display = "none";
+        await pullTree();
+        setStatus("Saved");
+      }catch(err){ showError(err); }
+    }
+
+    async function deleteFile(){
+      if(!state.current.path) return alert("No file selected.");
+      if(!confirm("Delete " + state.current.path + " from the repository?")) return;
+      try{
+        setStatus("Deleting...");
+        const res = await fetch(apiPath("/api/file"), {
+          method: "DELETE",
+          headers: headersJSON(),
+          body: JSON.stringify({
+            repo: state.owner + "/" + state.repo,
+            branch: state.branch,
+            path: state.current.path,
+            sha: state.current.sha,
+            message: byId("commitMsg").value.trim() || ("Delete " + state.current.path),
+            mode: state.mode,
+            token: state.mode === "pat" ? state.token : undefined
+          })
+        });
+        if(!res.ok){ throw new Error(await res.text()); }
+        await pullTree();
+        state.current = { path: "", sha: "" };
+        state.editor.setValue("");
+        byId("currentPath").textContent = "None";
+        setStatus("Deleted");
+      }catch(err){ showError(err); }
+    }
+
+    async function saveAs(){
+      const path = prompt("Save as path, for example: src/newfile.js");
+      if(!path) return;
+      await saveCurrentFile(path);
+    }
+
+    function newFile(){
+      const path = prompt("New file path, for example: src/app.py");
+      if(!path) return;
+      state.current = { path, sha: "" };
+      state.editor.setValue("");
+      state.editor.markClean();
+      byId("currentPath").textContent = path;
+      byId("dirtyBadge").style.display = "none";
+      applyModeFromPath(path);
+      setStatus("New file created locally. Click Save to push.");
+    }
+
+    // ---------- .env management via KV ----------
+    async function envLoad(){
+      try{
+        const slug = state.owner + "/" + state.repo;
+        const res = await fetch(apiPath(`/api/env?repo=${encodeURIComponent(slug)}&mode=${state.mode}`));
+        if(!res.ok){
+          const t = await res.text();
+          throw new Error(t || "Failed to load env");
+        }
+        const data = await res.json();
+        byId("envBox").value = data.content || "";
+        setStatus(".env loaded");
+      }catch(err){ showError(err); }
+    }
+    async function envSave(){
+      try{
+        const slug = state.owner + "/" + state.repo;
+        const res = await fetch(apiPath("/api/env"), {
+          method: "PUT",
+          headers: headersJSON(),
+          body: JSON.stringify({ repo: slug, content: byId("envBox").value || "" })
+        });
+        if(!res.ok){ throw new Error(await res.text()); }
+        setStatus(".env saved");
+      }catch(err){ showError(err); }
+    }
+
+    // ---------- UI ----------
+    function renderTree(){
+      const term = byId("searchInput").value.trim().toLowerCase();
+      const wrap = byId("panel-files");
+      wrap.innerHTML = "";
+      const files = state.tree.filter(n => !term || n.path.toLowerCase().includes(term));
+      if(files.length === 0){
+        const empty = document.createElement("div");
+        empty.className = "file";
+        empty.innerHTML = "<span class='muted'>No files</span>";
+        wrap.appendChild(empty);
+        return;
+      }
+      for(const f of files){
+        const el = document.createElement("div");
+        el.className = "file";
+        el.setAttribute("role", "option");
+        el.setAttribute("tabindex", "0");
+        el.dataset.path = f.path;
+        const name = document.createElement("div");
+        name.className = "name";
+        name.textContent = f.path;
+        const ext = document.createElement("div");
+        ext.className = "ext";
+        ext.textContent = f.path.split(".").pop().toLowerCase();
+        el.appendChild(name);
+        el.appendChild(ext);
+        el.addEventListener("click", ()=>openFile(f.path));
+        el.addEventListener("keydown", (e)=>{ if(e.key==="Enter" || e.key===" "){ openFile(f.path); } });
+        wrap.appendChild(el);
+      }
+    }
+
+    function setTheme(value){
+      if(value === "gbt"){
+        document.body.classList.add("theme-gbt");
+        if(state.editor) state.editor.setOption("theme", "default");
+      }else{
+        document.body.classList.remove("theme-gbt");
+        state.editor.setOption("theme", value);
+      }
+    }
+
+    // Keyboard shortcut: Ctrl or Cmd + S
+    window.addEventListener("keydown", (e)=>{
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC")>=0;
+      if((isMac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase()==="s"){
+        e.preventDefault();
+        if(!byId("saveBtn").disabled) saveCurrentFile();
+      }
+    });
+
+    // Tabs
+    function activateTab(tab){
+      const tabs = document.querySelectorAll(".tab");
+      tabs.forEach(t=>t.classList.remove("active"));
+      document.querySelector(`.tab[data-tab="${tab}"]`).classList.add("active");
+      document.querySelectorAll('[id^="panel-"]').forEach(p=>p.style.display="none");
+      byId("panel-" + tab).style.display = tab === "files" ? "block" : "block";
+      if(tab === "files"){
+        byId("panel-files").style.display = "block";
+        byId("panel-env").style.display = "none";
+        byId("panel-settings").style.display = "none";
+      }
+      if(tab === "env"){
+        byId("panel-files").style.display = "none";
+        byId("panel-env").style.display = "block";
+        byId("panel-settings").style.display = "none";
+      }
+      if(tab === "settings"){
+        byId("panel-files").style.display = "none";
+        byId("panel-env").style.display = "none";
+        byId("panel-settings").style.display = "block";
+      }
+    }
+
+    // DOM ready
+    window.addEventListener("load", ()=>{
+      initEditor();
+      byId("connectBtn").addEventListener("click", connect);
+      byId("pullBtn").addEventListener("click", pullTree);
+      byId("newBtn").addEventListener("click", newFile);
+      byId("saveBtn").addEventListener("click", ()=>saveCurrentFile());
+      byId("saveAsBtn").addEventListener("click", saveAs);
+      byId("deleteBtn").addEventListener("click", deleteFile);
+      byId("searchInput").addEventListener("input", renderTree);
+      byId("themeSelect").addEventListener("change", (e)=>setTheme(e.target.value));
+      byId("fontSize").addEventListener("input", (e)=>{
+        const v = e.target.value;
+        document.querySelector(".CodeMirror").style.fontSize = v + "px";
+      });
+      document.querySelectorAll(".tab").forEach(t=> t.addEventListener("click", ()=>activateTab(t.dataset.tab)));
+      byId("envLoad").addEventListener("click", envLoad);
+      byId("envSave").addEventListener("click", envSave);
+      setTheme("gbt");
+      setStatus("Ready. Enter repo and click Connect.");
+    });
+  </script>
+</body>
+</html>
