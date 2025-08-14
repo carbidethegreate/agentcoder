@@ -1,3 +1,5 @@
+import { base64ToString, stringToBase64 } from "./encoding.js";
+
 export default {
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
@@ -47,7 +49,8 @@ export default {
         if (!path) throw new Error("Path required");
         const gh = await getGitHub(env, repo, mode, token);
         const file = await gh(`/contents/${pathToUrl(path)}?ref=${encodeURIComponent(branch)}`);
-        const content = file.content ? atob(file.content.replace(/\n/g, "")) : "";
+        // base64ToString uses UTF-8 decoding so non-ASCII text is preserved
+        const content = file.content ? base64ToString(file.content.replace(/\n/g, "")) : "";
         return json({ path, sha: file.sha, content });
       }
 
@@ -59,7 +62,8 @@ export default {
         const res = await fetch(`https://api.github.com/repos/${repo}/contents/${pathToUrl(path)}`, {
           method: "PUT",
           headers: baseHeaders(await gh.token()),
-          body: JSON.stringify({ message, content: btoa(content), branch, sha: sha || undefined })
+          // stringToBase64 handles UTF-8 so emojis and other characters are encoded correctly
+          body: JSON.stringify({ message, content: stringToBase64(content), branch, sha: sha || undefined })
         });
         const out = await res.json();
         if (!res.ok) return json({ error: "GitHub error", details: out }, res.status);
