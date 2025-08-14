@@ -112,11 +112,21 @@ const state = { repo:"", branch:"", files:[], mode:"app", token:"", currentPath:
 function toast(msg, cls=""){ const s=$("#status"); s.textContent=msg; s.className="pill "+cls; }
 function repoValid(r){ return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(r); }
 function modeFromToken(){ const t=$("#token").value.trim(); state.token=t; return t? "pat":"app"; }
-async function api(path, init){ const res=await fetch(API_BASE+path,{...init,headers:{ "content-type":"application/json",...(init&&init.headers||{})}}); const text=await res.text(); let data; try{data=JSON.parse(text);}catch{data={raw:text}} if(!res.ok){ throw new Error((data&&data.error)||text||res.statusText);} return data; }
+async function api(path, init){
+  let res;
+  try{
+    res = await fetch(API_BASE+path,{...init,headers:{ "content-type":"application/json",...(init&&init.headers||{})}});
+  }catch(err){
+    throw new Error("Network error: "+err.message);
+  }
+  const text=await res.text();
+  let data; try{data=JSON.parse(text);}catch{data={raw:text}}
+  if(!res.ok){ throw new Error((data&&data.error)||text||res.statusText);} return data;
+}
 $("#connect").onclick = async () => {
   const repo=$("#repo").value.trim(); if(!repoValid(repo)){ alert("Use owner/repo"); return; }
   state.mode = modeFromToken();
-  try{ const body={repo, mode:state.mode}; if(state.mode==="pat") body.token=state.token; const data=await api("/api/connect",{method:"POST", body:JSON.stringify(body)}); state.repo=repo; state.branch=data.branch||"main"; $("#repoTag").textContent=repo; $("#branchTag").textContent=state.branch; toast("Connected","ok"); }catch(e){ alert("Connect failed: "+e.message); }
+  try{ const body={repo, mode:state.mode}; if(state.mode==="pat") body.token=state.token; const data=await api("/api/connect",{method:"POST", body:JSON.stringify(body)}); state.repo=repo; state.branch=data.branch||"main"; $("#repoTag").textContent=repo; $("#branchTag").textContent=state.branch; toast("Connected","ok"); }catch(e){ alert("Connect failed: "+e.message); toast("Connect failed: "+e.message,"err"); }
 };
 $("#pull").onclick = async () => {
   if(!state.repo){ alert("Connect first"); return; }
