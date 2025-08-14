@@ -93,11 +93,18 @@
       <div class="footer">
         <input id="message" class="commit" type="text" placeholder="Commit message, for example: Update">
         <button id="saveAs" class="btn">Save As</button>
-      </div>
-    </div>
   </div>
+  </div>
+</div>
 <script>
-const API_BASE = "https://botpad-api.whitakerdavid.workers.dev";
+// Determine the API base from window, meta tag, or environment variable.
+function getApiBase(){
+  return window.API_BASE
+    || document.querySelector('meta[name="api-base"]')?.getAttribute('content')
+    || (typeof process !== 'undefined' && process.env && process.env.API_BASE)
+    || "";
+}
+const API_BASE = getApiBase();
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 const state = { repo:"", branch:"", files:[], mode:"app", token:"", currentPath:"", currentSha:"" };

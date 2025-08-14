@@ -370,10 +370,16 @@
 
   <script>
     // ---------- Config ----------
-    // If you deploy the API as a separate Worker, set API_BASE to that origin.
-    // On Cloudflare Pages Functions with _worker.js, leave it as "".
+    // API base may be defined via window.API_BASE, a meta tag, or environment variable.
+    // When unspecified, requests fall back to relative paths.
+    function resolveApiBase(){
+      return window.API_BASE
+        || document.querySelector('meta[name="api-base"]')?.getAttribute('content')
+        || (typeof process !== 'undefined' && process.env && process.env.API_BASE)
+        || "";
+    }
     const CONFIG = {
-      API_BASE: "https://botpad-api.whitakerdavid.workers.dev" // example: "https://botpad-api.your.workers.dev"
+      API_BASE: resolveApiBase()
     };
 
     // ---------- Utilities ----------
