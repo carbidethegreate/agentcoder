@@ -85,14 +85,14 @@ export default {
         return json(out);
       }
 
-      if (url.pathname === "/api/env" && (req.method === "GET" || req.method === "POST")) {
+      if (url.pathname === "/api/env" && (req.method === "GET" || req.method === "PUT")) {
         await ensureSchema(env);
         if (req.method === "GET") {
           const repo = q(url, "repo");
           const branch = q(url, "branch") || "main";
           const r = await env.DB.prepare("SELECT content FROM env_files WHERE repo=? AND branch=?").bind(repo, branch).first();
           return json({ content: r?.content || "" });
-        } else {
+        } else { // PUT
           const { repo, branch = "main", content = "" } = await req.json();
           await env.DB
             .prepare("INSERT INTO env_files(repo,branch,content,updated_at) VALUES(?1,?2,?3,datetime('now')) ON CONFLICT(repo,branch) DO UPDATE SET content=excluded.content, updated_at=datetime('now')")
@@ -232,15 +232,9 @@ async function importPKCS8(pem) {
 }
 
 async function ensureSchema(env) {
-  await env.DB.exec(`
-    CREATE TABLE IF NOT EXISTS env_files (
-      repo TEXT NOT NULL,
-      branch TEXT NOT NULL,
-      content TEXT NOT NULL DEFAULT '',
-      updated_at TEXT NOT NULL,
-      PRIMARY KEY (repo, branch)
-    );
-  `);
+  await env.DB
+    .prepare("CREATE TABLE IF NOT EXISTS env_files (repo TEXT NOT NULL, branch TEXT NOT NULL, content TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL, PRIMARY KEY (repo, branch));")
+    .run();
 }
 
 function pathToUrl(p) {

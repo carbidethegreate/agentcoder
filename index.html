@@ -168,7 +168,7 @@ $("#envLoad").onclick = async () => {
 };
 $("#envSave").onclick = async () => {
   if (!state.repo) { alert("Connect first"); return; }
-  await api("/api/env", { method:"POST", body: JSON.stringify({ repo: state.repo, branch: state.branch || "main", content: $("#env").value })});
+  await api("/api/env", { method:"PUT", body: JSON.stringify({ repo: state.repo, branch: state.branch || "main", content: $("#env").value })});
   toast(".env saved", "ok");
 };
 (function init(){ const last=localStorage.getItem("botpad_repo")||""; if(last) $("#repo").value=last; $("#repo").addEventListener("change", ()=>{ localStorage.setItem("botpad_repo", $("#repo").value.trim()); }); })();
