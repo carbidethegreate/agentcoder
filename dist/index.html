@@ -614,7 +614,7 @@
       try{
         const slug = state.owner + "/" + state.repo;
         const res = await fetch(apiPath("/api/env"), {
-          method: "PUT",
+          method: "POST",
           headers: headersJSON(),
           body: JSON.stringify({ repo: slug, content: byId("envBox").value || "" })
         });
