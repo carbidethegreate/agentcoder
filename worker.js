@@ -1,10 +1,8 @@
 export default {
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
-    const allowOrigin = "https://agentcode.pages.dev";
-
     if (req.method === "OPTIONS") {
-      return new Response(null, { headers: corsHeaders(allowOrigin, req.headers.get("Origin")) });
+      return new Response(null, { headers: corsHeaders(env, req) });
     }
 
     if (url.pathname === "/" || url.pathname === "/index.html") {
@@ -125,7 +123,7 @@ export default {
         status,
         headers: {
           "content-type": "application/json",
-          ...corsHeaders(allowOrigin, null),
+          ...corsHeaders(env, req),
           ...headers
         }
       });
@@ -141,13 +139,20 @@ function baseHeaders(token) {
   };
 }
 
-function corsHeaders(allowOrigin, origin) {
-  return {
-    "access-control-allow-origin": allowOrigin,
+function corsHeaders(env, req) {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = (env.ALLOWED_ORIGINS
+    ? env.ALLOWED_ORIGINS.split(",")
+    : ["https://agentcode.pages.dev"]).map((o) => o.trim());
+  const headers = {
     "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
     "access-control-allow-headers": "content-type,authorization,x-pat",
     "access-control-max-age": "86400"
   };
+  if (allowed.includes(origin)) {
+    headers["access-control-allow-origin"] = origin;
+  }
+  return headers;
 }
 
 async function getGitHub(env, repo, mode, pat) {
