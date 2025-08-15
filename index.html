@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BotPad - Minimal GitHub Editor</title>
-  <meta name="api-base" content="https://botpad-api.whitakerdev.workers.dev">
+  <!-- Optional API base override -->
+  <!-- <meta name="api-base" content="https://api.example.com"> -->
   <style>
     :root {
       --bg: #0c0f12;
@@ -98,7 +99,8 @@
   </div>
 </div>
 <script>
-// Determine the API base from window, meta tag, or environment variable.
+// Determine the API base from window, meta tag, or environment variable,
+// falling back to relative paths when none is provided.
 function getApiBase(){
   return window.API_BASE
     || document.querySelector('meta[name="api-base"]')?.getAttribute('content')
