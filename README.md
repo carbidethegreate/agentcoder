@@ -37,6 +37,12 @@ or
 <script>window.API_BASE = "https://botpad-api.example.workers.dev";</script>
 ```
 
+or set an environment variable during build/deploy:
+
+```bash
+API_BASE=https://botpad-api.example.workers.dev wrangler pages deploy dist
+```
+
 ## Manual testing
 
 To confirm that `.env` persistence works:
